@@ -36,6 +36,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
 import login_state  # noqa: E402
 import content_guard  # noqa: E402  出站内容安全闸门
 
@@ -81,7 +82,7 @@ DEFAULT_QR_OUT = PROJECT_ROOT / "outputs" / "_login" / "xhs-login-qrcode.png"
 # Chromium 启动性能参数（提速冷启动；勿禁用图片——二维码是图片）
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+    "--disable-dev-shm-usage", "--disable-gpu",
     "--disable-extensions", "--disable-background-networking",
     "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
     "--disable-features=TranslateUI,BackForwardCache",
@@ -551,18 +552,18 @@ def _launch(p, headed: bool, base: str | None, proxy: str | None):
     profile = _profile_dir(base)
     profile.mkdir(parents=True, exist_ok=True)
     args = list(LAUNCH_ARGS)
-    kwargs = dict(headless=not headed,
-                  locale="zh-CN",
-                  args=args)
-    if proxy:
-        kwargs["proxy"] = {"server": proxy}
-    else:
+    if not proxy:
         # 显式直连：Chromium 级屏蔽系统/环境代理（开 VPN 也能用）——同抖音链兜底
         args.append("--no-proxy-server")
+    kwargs = browser_launch.launch_kwargs(args, headless=not headed, locale="zh-CN")
+    if proxy:
+        kwargs["proxy"] = {"server": proxy}
     cloak = _cloak_executable()
     if cloak:
+        # CloakBrowser 自带内核优先；executable_path 与策略里的 channel 互斥，去掉后者
         kwargs["executable_path"] = str(cloak)
-    elif headed:
+        kwargs.pop("channel", None)
+    elif headed and not kwargs.get("channel"):
         channel = _browser_channel()
         if channel:
             kwargs["channel"] = channel
@@ -586,11 +587,11 @@ def cmd_check(_a) -> int:
         from playwright.sync_api import sync_playwright
         print("✅ playwright 已安装")
         with sync_playwright() as p:
-            path = p.chromium.executable_path
-            if path and Path(path).exists():
-                print(f"✅ chromium 内核：{path}")
+            path = browser_launch.browser_path(p)
+            if path:
+                print(f"✅ 浏览器内核：{path}")
             else:
-                print("❌ 未安装浏览器内核（playwright install chromium）"); ok = False
+                print(f"❌ 未找到浏览器（{browser_launch.install_hint()}）"); ok = False
     except Exception as e:
         print(f"❌ playwright/内核不可用：{e}"); ok = False
     cloak = _cloak_executable()

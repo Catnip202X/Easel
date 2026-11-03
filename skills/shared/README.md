@@ -24,7 +24,7 @@
 
 ## 依赖
 
-- `render_card.py` 需 `pip install playwright && playwright install chromium`
+- `render_card.py` 等浏览器脚本需 `pip install playwright`；浏览器默认走本机 Google Chrome 并开沙箱（策略见 `browser_launch.py`；`EASEL_BROWSER_CHANNEL=chromium` 可回退 `playwright install chromium` 的自带内核）
 - `image_ops.py` 需 `pip install Pillow`（图像处理）
 - `audio_ops.py` / `video_ops.py` 需系统 `ffmpeg` + `ffprobe`
 - `asr.py` 需 `pip install faster-whisper` + ffmpeg；模型放 `~/.cache/easel-models/faster-whisper-<size>/`（本环境代理下 HF 自动下载失败，需 curl 手动下 config.json/model.bin/tokenizer.json/vocabulary.txt）

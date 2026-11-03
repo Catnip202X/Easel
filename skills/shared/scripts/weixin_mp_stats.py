@@ -27,6 +27,7 @@ else:
     import fcntl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
 import login_state  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -35,7 +36,7 @@ PROFILE_NAME = "WeixinMpProfile"
 MP_HOME = "https://mp.weixin.qq.com/"
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+    "--disable-dev-shm-usage", "--disable-gpu",
 ]
 TOKEN_RE = re.compile(r"[?&]token=(\d+)")
 
@@ -149,7 +150,7 @@ def _launch(p, headed, base, proxy):
     prof = _profile_dir(base)
     prof.mkdir(parents=True, exist_ok=True)
     lock = _lock_profile(prof)
-    kw = dict(headless=not headed, locale="zh-CN", args=LAUNCH_ARGS,
+    kw = browser_launch.launch_kwargs(LAUNCH_ARGS, headless=not headed, locale="zh-CN",
               viewport={"width": 1440, "height": 900})
     # mp 为国内站，直连即可。仅显式 --proxy 时才走代理；否则不传 proxy，
     # 并靠进程环境已清空 http(s)_proxy（见启动命令的 env -u）让 Chromium 直连。

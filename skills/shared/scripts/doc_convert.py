@@ -23,6 +23,9 @@ import argparse
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
+
 _CSS = """
 :root{--fg:#24292f;--muted:#57606a;--border:#d0d7de;--code-bg:#f6f8fa;--accent:#0969da;}
 *{box-sizing:border-box;}
@@ -80,9 +83,9 @@ def _render(html_path: Path, out: Path, kind: str, width: int) -> bool:
     try:
         from playwright.sync_api import sync_playwright
     except Exception as e:
-        _die(f"{kind} 需要 playwright：{e}（pip install playwright && playwright install chromium）", 3)
+        _die(f"{kind} 需要 playwright：{e}（pip install playwright；浏览器默认用本机 Chrome）", 3)
     with sync_playwright() as p:
-        b = p.chromium.launch(headless=True)
+        b = p.chromium.launch(**browser_launch.launch_kwargs(headless=True))
         page = b.new_page(viewport={"width": width, "height": 1200}, device_scale_factor=2)
         page.goto(html_path.as_uri(), wait_until="networkidle", timeout=30000)
         if kind == "pdf":

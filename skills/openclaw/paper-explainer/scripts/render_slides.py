@@ -13,6 +13,26 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+_SANDBOX_OFF_FLAGS = ("--no-sandbox", "--disable-setuid-sandbox")
+
+
+def _launch_kwargs(args: list[str]) -> dict[str, Any]:
+    """与 skills/shared/scripts/browser_launch.py 同一策略（本技能单独同步，故内联）：
+    默认驱动本机 Chrome（EASEL_BROWSER_CHANNEL=chromium 回退自带内核）并打开 Chromium 沙箱
+    （EASEL_CHROMIUM_SANDBOX=0 关闭；root 下默认关闭）。"""
+    import os
+    env = os.environ.get("EASEL_CHROMIUM_SANDBOX")
+    if env is not None:
+        sandbox = env.strip().lower() not in ("0", "false", "no", "off")
+    else:
+        sandbox = not (hasattr(os, "geteuid") and os.geteuid() == 0)
+    kw: dict[str, Any] = {"args": [a for a in args if a not in _SANDBOX_OFF_FLAGS],
+                          "chromium_sandbox": sandbox}
+    channel = os.environ.get("EASEL_BROWSER_CHANNEL", "chrome").strip().lower()
+    if channel not in ("", "chromium", "bundled"):
+        kw["channel"] = channel
+    return kw
+
 
 THEMES: dict[str, dict[str, Any]] = {
     "editorial": {"bg": "#f3f0e8", "ink": "#11110f", "muted": "#68625a",
@@ -613,7 +633,7 @@ async def render(plan_path: Path, plan: dict[str, Any], out_dir: Path, html_path
     try:
         from playwright.async_api import async_playwright
     except ImportError:
-        _die("未安装 playwright；运行 pip install playwright && playwright install chromium", 3)
+        _die("未安装 playwright；运行 pip install playwright（浏览器默认用本机 Chrome）", 3)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     html_path.parent.mkdir(parents=True, exist_ok=True)
@@ -621,7 +641,7 @@ async def render(plan_path: Path, plan: dict[str, Any], out_dir: Path, html_path
     width, height = SIZES[plan["size"]]
     report: dict[str, Any] = {"plan": str(plan_path), "size": plan["size"], "slides": []}
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage", "--font-render-hinting=none"])
+        browser = await pw.chromium.launch(**_launch_kwargs(["--disable-dev-shm-usage", "--font-render-hinting=none"]))
         page = await browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
         await page.goto(html_path.as_uri(), wait_until="load", timeout=20000)
         try:

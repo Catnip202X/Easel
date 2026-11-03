@@ -10,6 +10,9 @@ from __future__ import annotations
 import argparse, json, sys, time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_DIR = Path.home() / ".easel-browser-profiles" / "ZhihuProfile"
 
@@ -42,7 +45,7 @@ def fetch_comments(article_url: str, limit: int = 100):
         browser = p.chromium.launch_persistent_context(
             str(PROFILE_DIR),
             headless=True,
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+            **browser_launch.launch_kwargs(["--disable-blink-features=AutomationControlled"]),
         )
         page = browser.new_page()
         page.on("response", on_response)

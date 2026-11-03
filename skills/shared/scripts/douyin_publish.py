@@ -27,6 +27,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
 import login_state  # noqa: E402
 import content_guard  # noqa: E402  出站内容安全闸门
 import platform_readback  # noqa: E402  发布读回对账（快照+列表对账协议）
@@ -105,7 +106,7 @@ WALL_KEYWORDS = ("身份验证", "接收短信", "短信验证", "验证方式",
 # 写到 overlay /tmp，发布页这类重页面下会触发渲染进程崩溃（"Page crashed"，真机实测）。
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-gpu", "--disable-software-rasterizer",
+    "--disable-gpu", "--disable-software-rasterizer",
     "--disable-extensions", "--disable-background-networking",
     "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
     "--disable-features=TranslateUI,BackForwardCache",
@@ -155,7 +156,7 @@ def _launch(p, headed: bool, base: str | None, proxy: str | None):
         # 显式直连：忽略环境里可能存在的 http_proxy/https_proxy
         #（国内平台发布/登录必须直连；web 侧 _proxy_env 可能注入代理变量，这里兜底）
         args.append("--no-proxy-server")
-    kwargs = dict(headless=not headed, locale="zh-CN", args=args)
+    kwargs = browser_launch.launch_kwargs(args, headless=not headed, locale="zh-CN")
     if proxy:
         kwargs["proxy"] = {"server": proxy}
     return p.chromium.launch_persistent_context(str(profile), **kwargs)
@@ -937,11 +938,11 @@ def cmd_check(_a) -> int:
         from playwright.sync_api import sync_playwright
         print("✅ playwright 已安装")
         with sync_playwright() as p:
-            path = p.chromium.executable_path
-            if path and Path(path).exists():
-                print(f"✅ chromium 内核：{path}")
+            path = browser_launch.browser_path(p)
+            if path:
+                print(f"✅ 浏览器内核：{path}")
             else:
-                print("❌ 未安装浏览器内核（playwright install chromium）"); ok = False
+                print(f"❌ 未找到浏览器（{browser_launch.install_hint()}）"); ok = False
     except Exception as e:
         print(f"❌ playwright/内核不可用：{e}"); ok = False
     print(f"登录态目录：{_profile_dir(None)}")

@@ -27,9 +27,10 @@ import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
+
 _LAUNCH_ARGS = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
     "--font-render-hinting=none",
     "--disable-dev-shm-usage",
 ]
@@ -48,7 +49,7 @@ async def _render(args) -> int:
     try:
         from playwright.async_api import async_playwright
     except ImportError:
-        print("ERROR: 未安装 playwright。请运行：pip install playwright && playwright install chromium",
+        print("ERROR: 未安装 playwright。请运行：pip install playwright（浏览器默认用本机 Chrome）",
               file=sys.stderr)
         return 3
 
@@ -59,14 +60,14 @@ async def _render(args) -> int:
 
     fmt = args.format
     proxy = args.proxy or _env_proxy()
-    launch_kwargs: dict = {"args": _LAUNCH_ARGS}
+    launch_kwargs: dict = browser_launch.launch_kwargs(_LAUNCH_ARGS)
     if proxy:
         launch_kwargs["proxy"] = {"server": proxy}
     async with async_playwright() as p:
         try:
             browser = await p.chromium.launch(**launch_kwargs)
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR: 无法启动 chromium（可能未 `playwright install chromium`）: {e}", file=sys.stderr)
+            print(f"ERROR: 无法启动浏览器（{browser_launch.install_hint()}）: {e}", file=sys.stderr)
             return 3
         page = await browser.new_page(
             viewport={"width": args.width, "height": args.height},
