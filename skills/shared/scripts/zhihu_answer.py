@@ -27,6 +27,7 @@ import argparse, json, os, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
 import content_guard  # noqa: E402  出站内容安全闸门
 
 # PROJECT_ROOT：优先 EASEL_ROOT env（gateway/CLI/web 注入），否则按 __file__ 上溯。
@@ -37,7 +38,7 @@ PROFILE_DIR = Path.home() / ".easel-browser-profiles" / "ZhihuProfile"
 
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+    "--disable-dev-shm-usage", "--disable-gpu",
     "--disable-extensions", "--disable-background-networking",
     "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
     "--mute-audio", "--no-first-run", "--no-default-browser-check",
@@ -224,7 +225,7 @@ def publish_answer(question_url: str, content: str, headed: bool = False, dry_ru
         ctx = p.chromium.launch_persistent_context(
             str(PROFILE_DIR),
             headless=not headed,
-            args=LAUNCH_ARGS,
+            **browser_launch.launch_kwargs(LAUNCH_ARGS),
             viewport={"width": 1280, "height": 900},
         )
         page = ctx.new_page()

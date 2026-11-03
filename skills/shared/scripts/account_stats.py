@@ -19,6 +19,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ANALYTICS_DIR = PROJECT_ROOT / "outputs" / "_analytics"
 # 分层保留：近 KEEP_FULL_DAYS 天全部变化一条不丢；90~DAILY_DAYS 天每天≤1条；更老每周≤1条。
@@ -88,7 +91,7 @@ PLATFORMS: dict[str, dict] = {
 
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+    "--disable-dev-shm-usage", "--disable-gpu",
     "--no-first-run", "--no-default-browser-check", "--mute-audio",
     "--blink-settings=imagesEnabled=false",  # 只读文字/属性，禁图大幅提速（封面 URL 仍在 DOM src 里）
 ]
@@ -396,7 +399,7 @@ def _scrape(platform: str, headed: bool, base: str | None, proxy: str | None) ->
                 _clear_stale_chrome_locks(profile)
                 ctx = _xhs_launch(p, headed, base, proxy)
             else:
-                kwargs = dict(headless=not headed, locale="zh-CN", args=LAUNCH_ARGS)
+                kwargs = browser_launch.launch_kwargs(LAUNCH_ARGS, headless=not headed, locale="zh-CN")
                 if proxy:
                     kwargs["proxy"] = {"server": proxy}
                 ctx = p.chromium.launch_persistent_context(str(profile), **kwargs)
@@ -806,10 +809,10 @@ def cmd_check(_a) -> int:
         from playwright.sync_api import sync_playwright
         print("✅ playwright 已安装")
         with sync_playwright() as p:
-            path = p.chromium.executable_path
-            print(f"✅ chromium 内核：{path}" if path and Path(path).exists()
-                  else "❌ 未安装浏览器内核（playwright install chromium）")
-            ok = bool(path and Path(path).exists())
+            path = browser_launch.browser_path(p)
+            print(f"✅ 浏览器内核：{path}" if path
+                  else f"❌ 未找到浏览器（{browser_launch.install_hint()}）")
+            ok = bool(path)
     except Exception as e:
         print(f"❌ playwright/内核不可用：{e}"); ok = False
     print(f"支持平台：{', '.join(PLATFORMS)}")

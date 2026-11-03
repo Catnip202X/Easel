@@ -253,7 +253,8 @@ easel web                    # 启动 Web 工作台
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-python3 -m playwright install chromium
+# 浏览器脚本默认驱动本机 Google Chrome（请先装好）；只有设 EASEL_BROWSER_CHANNEL=chromium 时才需要：
+# python3 -m playwright install chromium
 # 手动安装时仍需提前安装 ffmpeg
 ```
 

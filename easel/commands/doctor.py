@@ -107,10 +107,20 @@ def _venv_available() -> bool:
 
 
 def _chromium_available() -> bool:
+    """启动策略见 skills/shared/scripts/browser_launch.py：默认本机 Chrome，可回退自带内核。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "browser_launch", PROJECT_ROOT / "skills" / "shared" / "scripts" / "browser_launch.py")
+    if spec is None or spec.loader is None:
+        return False
+    mod = importlib.util.module_from_spec(spec)
     try:
+        spec.loader.exec_module(mod)
+        if mod.channel() is not None:
+            return bool(mod.browser_path())
         from playwright.sync_api import sync_playwright
         with sync_playwright() as playwright:
-            return Path(playwright.chromium.executable_path).is_file()
+            return bool(mod.browser_path(playwright))
     except (ImportError, OSError, RuntimeError):
         return False
 
@@ -293,8 +303,8 @@ def cmd_doctor(_args) -> int:
     frontend_ready = (PROJECT_ROOT / "web" / "frontend" / "dist" / "index.html").is_file()
     all_ok &= _check("Web frontend build", frontend_ready,
                       "运行 cd web/frontend && npm ci && npm run build")
-    all_ok &= _check("Playwright Chromium", _chromium_available(),
-                      "运行 python3 -m playwright install chromium")
+    all_ok &= _check("Browser (Chrome via Playwright)", _chromium_available(),
+                      "安装 Google Chrome；或设 EASEL_BROWSER_CHANNEL=chromium 后 python3 -m playwright install chromium")
 
     # 3. .env file with valid key
     env_ok = _env_key_valid()

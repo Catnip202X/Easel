@@ -196,7 +196,8 @@ The installer installs the Python dependencies required by the Web UI, media pro
 
 ```bash
 pip install -e .
-python -m playwright install chromium
+# Browser scripts drive the system Google Chrome by default (install it first). Only with
+# EASEL_BROWSER_CHANNEL=chromium do you need: python -m playwright install chromium
 # FFmpeg is also required on the system.
 ```
 

@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser_launch  # noqa: E402
 import login_state  # noqa: E402
 import content_guard  # noqa: E402  出站内容安全闸门
 import platform_readback  # noqa: E402  发布读回对账（快手已接入，注册表见 _READBACK_VERIFIERS）
@@ -255,7 +256,7 @@ _ACTIONS = {"goto", "upload", "filechooser_upload", "fill", "type", "click", "js
 # 国内平台一律直连：下方各 launch 处统一附 --no-proxy-server（Chromium 级屏蔽系统/环境代理，开 VPN 也能用）
 LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+    "--disable-dev-shm-usage", "--disable-gpu",
     "--disable-extensions", "--disable-background-networking",
     "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
     "--disable-features=TranslateUI,BackForwardCache",
@@ -334,13 +335,13 @@ def cmd_check(_a) -> int:
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            path = p.chromium.executable_path
-            if path and Path(path).exists():
-                print(f"✅ chromium 内核：{path}")
+            path = browser_launch.browser_path(p)
+            if path:
+                print(f"✅ 浏览器内核：{path}")
             else:
-                print("❌ 未安装浏览器内核（playwright install chromium）"); ok = False
+                print(f"❌ 未找到浏览器（{browser_launch.install_hint()}）"); ok = False
     except Exception as e:
-        print(f"❌ 无法检查内核：{e}（playwright install chromium）"); ok = False
+        print(f"❌ 无法检查内核：{e}（{browser_launch.install_hint()}）"); ok = False
     print("登录态目录：~/.easel-browser-profiles/<平台>Profile")
     return 0 if ok else 3
 
@@ -553,7 +554,7 @@ def _run_browser(a, headed: bool, do_publish: bool) -> int:
     try:
         from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
     except Exception as e:
-        _die(f"需要 playwright：{e}（pip install playwright && playwright install chromium）", 3)
+        _die(f"需要 playwright：{e}（pip install playwright；浏览器默认用本机 Chrome）", 3)
     profile = _profile_dir(a.platform, a.profile_base)
     profile.mkdir(parents=True, exist_ok=True)
     cfg = PLATFORMS[a.platform]
@@ -561,7 +562,7 @@ def _run_browser(a, headed: bool, do_publish: bool) -> int:
            "tags": a.tags or "", "cover": a.cover or ""}
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
-            str(profile), headless=not headed, args=LAUNCH_ARGS + ["--no-proxy-server"],
+            str(profile), headless=not headed, **browser_launch.launch_kwargs(LAUNCH_ARGS + ["--no-proxy-server"]),
             viewport={"width": 1440, "height": 900})
         page = browser.pages[0] if browser.pages else browser.new_page()
         if not do_publish:
@@ -1123,7 +1124,7 @@ def cmd_login_qr(a) -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             str(profile), headless=True, locale="zh-CN",
-            args=LAUNCH_ARGS + ["--no-proxy-server"])
+            **browser_launch.launch_kwargs(LAUNCH_ARGS + ["--no-proxy-server"]))
         page = browser.pages[0] if browser.pages else browser.new_page()
         try:
             page.goto(cfg["login_url"], wait_until="domcontentloaded")
@@ -1255,7 +1256,7 @@ def cmd_whoami(a) -> int:
             profile.mkdir(parents=True, exist_ok=True)
             browser = p.chromium.launch_persistent_context(
                 str(profile), headless=True, locale="zh-CN",
-                args=LAUNCH_ARGS + ["--no-proxy-server"])
+                **browser_launch.launch_kwargs(LAUNCH_ARGS + ["--no-proxy-server"]))
             page = browser.pages[0] if browser.pages else browser.new_page()
             try:
                 page.goto(cfg["publish_url"], wait_until="domcontentloaded", timeout=30000)
